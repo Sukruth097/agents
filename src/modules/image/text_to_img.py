@@ -9,7 +9,12 @@ from src.settings import settings
 from langchain.prompts import PromptTemplate
 from langchain_groq import ChatGroq
 from pydantic import BaseModel, Field
+from together import Together
+from dotenv import load_dotenv
 
+
+# Load environment variables from the .env file
+load_dotenv()
 
 class ScenarioPrompt(BaseModel):
     """Class for the scenario response"""
@@ -28,13 +33,14 @@ class EnhancedPrompt(BaseModel):
 
 
 class TextToImage:
-    """A class to handle text-to-image generation using Groq AI models."""
+    """A class to handle text-to-image generation using Together AI."""
 
-    REQUIRED_ENV_VARS = ["GROQ_API_KEY"]
+    REQUIRED_ENV_VARS = ["GROQ_API_KEY", "TOGETHER_API_KEY"]
 
     def __init__(self):
         """Initialize the TextToImage class and validate environment variables."""
-        self._validate_env_vars()
+        # self._validate_env_vars()
+        self._together_client: Optional[Together] = None
         self.logger = logging.getLogger(__name__)
 
     def _validate_env_vars(self) -> None:
@@ -43,28 +49,32 @@ class TextToImage:
         if missing_vars:
             raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
 
+    @property
+    def together_client(self) -> Together:
+        """Get or create Together client instance using singleton pattern."""
+        if self._together_client is None:
+            self._together_client = Together(api_key=os.getenv('TOGETHER_API_KEY'))
+        return self._together_client
+
     async def generate_image(self, prompt: str, output_path: str = "") -> bytes:
-        """Generate an image from a prompt using Groq API."""
+        """Generate an image from a prompt using Together AI."""
         if not prompt.strip():
             raise ValueError("Prompt cannot be empty")
 
         try:
             self.logger.info(f"Generating image for prompt: '{prompt}'")
 
-            # Using Groq's model for text-to-image generation
-            llm = ChatGroq(
-                model=settings.TTI_MODEL_NAME,  # Replace with an actual Groq-supported image model
-                api_key=settings.GROQ_API_KEY,
-                temperature=0.5,
-                max_retries=2,
+            response = self.together_client.images.generate(
+                prompt=prompt,
+                model=settings.TTI_MODEL_NAME,
+                width=1024,
+                height=768,
+                steps=4,
+                n=1,
+                response_format="b64_json",
             )
 
-            response = llm.invoke({"prompt": prompt})
-
-            if not response:
-                raise TextToImageError("Empty response from Groq image model.")
-
-            image_data = base64.b64decode(response)  # Assuming Groq returns base64-encoded image
+            image_data = base64.b64decode(response.data[0].b64_json)
 
             if output_path:
                 os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -86,7 +96,7 @@ class TextToImage:
 
             llm = ChatGroq(
                 model=settings.TEXT_MODEL_NAME,
-                api_key=settings.GROQ_API_KEY,
+                api_key=os.getenv('GROQ_API_KEY'),
                 temperature=0.4,
                 max_retries=2,
             )
@@ -116,7 +126,7 @@ class TextToImage:
 
             llm = ChatGroq(
                 model=settings.TEXT_MODEL_NAME,
-                api_key=settings.GROQ_API_KEY,
+                api_key=os.getenv('GROQ_API_KEY'),
                 temperature=0.25,
                 max_retries=2,
             )

@@ -6,8 +6,9 @@ from typing import Optional, Union
 from src.core.exceptions import ImageToTextError
 from src.settings import settings
 from groq import Groq
-import asyncio
+from dotenv import load_dotenv
 
+load_dotenv()
 
 class ImageToText:
     """A class to handle image-to-text conversion using Groq's vision capabilities."""
@@ -16,7 +17,7 @@ class ImageToText:
 
     def __init__(self):
         """Initialize the ImageToText class and validate environment variables."""
-        self._validate_env_vars()
+        # self._validate_env_vars()
         self._client: Optional[Groq] = None
         self.logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ class ImageToText:
     def client(self) -> Groq:
         """Get or create Groq client instance using singleton pattern."""
         if self._client is None:
-            self._client = Groq(api_key=settings.GROQ_API_KEY)
+            self._client = Groq(api_key=os.getenv('GROQ_API_KEY'))
         return self._client
 
     async def analyze_image(self, image_data: Union[str, bytes], prompt: str = "") -> str:
