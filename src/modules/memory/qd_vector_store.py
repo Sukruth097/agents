@@ -11,7 +11,7 @@ from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
 
 load_dotenv()
-os.environ["HF_TOKEN"] = os.getenv("HF_TOKEN")
+# os.environ["HF_TOKEN"] = os.getenv("HF_TOKEN")
 
 @dataclass
 class Memory:
